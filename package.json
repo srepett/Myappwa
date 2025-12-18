@@ -1,0 +1,20 @@
+{
+  "name": "whatsapp-web-api-custom",
+  "version": "1.0.0",
+  "description": "Custom WhatsApp Web Client with Neon UI",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.6.0",
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2",
+    "qrcode": "^1.5.3",
+    "pino": "^8.16.1",
+    "cors": "^2.8.5"
+  },
+  "engines": {
+    "node": "18.x"
+  }
+}

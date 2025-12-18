@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zymzz WhatsApp Connect</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --neon: #00ddff;
+            --dark: #050505;
+            --glass: rgba(0, 221, 255, 0.05);
+        }
+        body {
+            background-color: var(--dark);
+            color: white;
+            font-family: 'Courier New', Courier, monospace;
+            overflow-x: hidden;
+        }
+        /* Neon Glow Effect */
+        .neon-text {
+            color: var(--neon);
+            text-shadow: 0 0 10px var(--neon), 0 0 20px var(--neon);
+        }
+        .neon-border {
+            border: 1px solid var(--neon);
+            box-shadow: 0 0 10px var(--neon) inset;
+        }
+        .glass-panel {
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 221, 255, 0.2);
+            border-radius: 12px;
+        }
+        .btn-neon {
+            background: transparent;
+            border: 1px solid var(--neon);
+            color: var(--neon);
+            transition: 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: bold;
+        }
+        .btn-neon:hover {
+            background: var(--neon);
+            color: black;
+            box-shadow: 0 0 20px var(--neon);
+        }
+        /* Input styling */
+        input, textarea, select {
+            background: #111;
+            border: 1px solid #333;
+            color: var(--neon);
+        }
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--neon);
+            box-shadow: 0 0 5px var(--neon);
+        }
+        /* Loader QR */
+        .scan-line {
+            width: 100%;
+            height: 2px;
+            background: var(--neon);
+            animation: scan 2s infinite;
+        }
+        @keyframes scan {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(200px); }
+            100% { transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+
+    <header class="w-full max-w-4xl flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold neon-text"><i class="fab fa-whatsapp"></i> WA API TOOL</h1>
+        <div id="status-badge" class="px-4 py-1 rounded-full border border-red-500 text-red-500 text-sm">OFFLINE</div>
+    </header>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
+        
+        <div class="glass-panel p-6 flex flex-col items-center justify-center relative min-h-[400px]">
+            <h2 class="text-xl mb-4 text-gray-300">DEVICE CONNECTION</h2>
+            
+            <div id="qr-container" class="relative w-64 h-64 border-2 border-[#00ddff] p-2 rounded-lg hidden">
+                <img id="qr-image" src="" class="w-full h-full object-contain">
+                <div class="absolute top-0 left-0 w-full h-2 bg-[#00ddff] shadow-[0_0_10px_#00ddff] animate-[scan_2s_linear_infinite] opacity-50"></div>
+            </div>
+
+            <div id="user-info" class="hidden text-center">
+                <div class="w-20 h-20 bg-[#00ddff] rounded-full mx-auto mb-4 flex items-center justify-center text-black text-3xl">
+                    <i class="fas fa-user-astronaut"></i>
+                </div>
+                <h3 class="text-2xl neon-text" id="wa-name">-</h3>
+                <p class="text-xs text-gray-400" id="wa-id">-</p>
+                <button onclick="logout()" class="mt-6 px-6 py-2 border border-red-500 text-red-500 hover:bg-red-500 hover:text-white transition rounded">LOGOUT</button>
+            </div>
+
+            <div class="w-full mt-6 h-32 overflow-y-auto bg-black p-2 text-xs font-mono text-green-400 border border-gray-800 rounded" id="logs">
+                <p>> System initialized...</p>
+            </div>
+        </div>
+
+        <div class="glass-panel p-6 relative">
+            <div id="lock-overlay" class="absolute inset-0 bg-black/80 z-10 flex flex-col items-center justify-center backdrop-blur-sm">
+                <i class="fas fa-lock text-4xl text-gray-500 mb-2"></i>
+                <p class="text-gray-400">Login via QR untuk akses fitur</p>
+            </div>
+
+            <div class="mb-4 flex space-x-2 border-b border-gray-700 pb-2">
+                <button onclick="switchTab('chat')" class="flex-1 py-2 text-sm hover:text-[#00ddff] transition">CHAT</button>
+                <button onclick="switchTab('button')" class="flex-1 py-2 text-sm hover:text-[#00ddff] transition">BUTTON</button>
+            </div>
+
+            <div id="tab-chat" class="space-y-4">
+                <div>
+                    <label class="text-xs text-[#00ddff]">NOMOR TUJUAN (628xx)</label>
+                    <input type="number" id="target-number" class="w-full p-2 rounded bg-black border border-gray-700 focus:border-[#00ddff]" placeholder="628123456789">
+                </div>
+                <div>
+                    <label class="text-xs text-[#00ddff]">PESAN</label>
+                    <textarea id="message-text" rows="4" class="w-full p-2 rounded bg-black border border-gray-700 focus:border-[#00ddff]" placeholder="Ketik pesan disini..."></textarea>
+                </div>
+                <button onclick="sendMessage()" class="w-full py-3 btn-neon rounded">KIRIM PESAN <i class="fas fa-paper-plane ml-2"></i></button>
+            </div>
+
+             <div id="tab-button" class="space-y-4 hidden">
+                <div>
+                    <label class="text-xs text-[#00ddff]">NOMOR TUJUAN</label>
+                    <input type="number" id="btn-target" class="w-full p-2 rounded bg-black border border-gray-700" placeholder="628xxx">
+                </div>
+                <div>
+                    <label class="text-xs text-[#00ddff]">ISI PESAN UTAMA</label>
+                    <input type="text" id="btn-msg" class="w-full p-2 rounded bg-black border border-gray-700" placeholder="Halo...">
+                </div>
+                <div>
+                    <label class="text-xs text-[#00ddff]">FOOTER</label>
+                    <input type="text" id="btn-footer" class="w-full p-2 rounded bg-black border border-gray-700" placeholder="Zymzz Bot">
+                </div>
+                 <div class="grid grid-cols-2 gap-2">
+                    <input type="text" id="btn1-text" class="p-2 bg-black border border-gray-700 text-xs" placeholder="Label Tombol 1">
+                    <input type="text" id="btn2-text" class="p-2 bg-black border border-gray-700 text-xs" placeholder="Label Tombol 2">
+                </div>
+                <button onclick="sendButton()" class="w-full py-3 btn-neon rounded">KIRIM BUTTON <i class="fas fa-bolt ml-2"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        const logs = document.getElementById('logs');
+        
+        function addLog(msg) {
+            const p = document.createElement('p');
+            p.innerText = `> ${msg}`;
+            logs.appendChild(p);
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        // Socket Events
+        socket.on('log', (msg) => addLog(msg));
+        
+        socket.on('qr', (url) => {
+            const qrContainer = document.getElementById('qr-container');
+            const qrImage = document.getElementById('qr-image');
+            const userInfo = document.getElementById('user-info');
+            
+            if (url) {
+                qrContainer.classList.remove('hidden');
+                userInfo.classList.add('hidden');
+                qrImage.src = url;
+                document.getElementById('status-badge').innerText = "SCAN QR";
+                document.getElementById('status-badge').className = "px-4 py-1 rounded-full border border-yellow-500 text-yellow-500 text-sm";
+            } else {
+                qrContainer.classList.add('hidden');
+            }
+        });
+
+        socket.on('ready', (status) => {
+            if(status) {
+                document.getElementById('qr-container').classList.add('hidden');
+                document.getElementById('lock-overlay').classList.add('hidden'); // Buka kunci fitur
+                document.getElementById('status-badge').innerText = "CONNECTED";
+                document.getElementById('status-badge').className = "px-4 py-1 rounded-full border border-[#00ddff] text-[#00ddff] text-sm shadow-[0_0_10px_#00ddff]";
+            }
+        });
+
+        socket.on('user_info', (data) => {
+            document.getElementById('user-info').classList.remove('hidden');
+            document.getElementById('wa-name').innerText = data.name || "User";
+            document.getElementById('wa-id').innerText = data.id.split(':')[0];
+        });
+
+        // UI Functions
+        function switchTab(tab) {
+            document.getElementById('tab-chat').classList.add('hidden');
+            document.getElementById('tab-button').classList.add('hidden');
+            document.getElementById('tab-' + tab).classList.remove('hidden');
+        }
+
+        async function sendMessage() {
+            const number = document.getElementById('target-number').value;
+            const message = document.getElementById('message-text').value;
+
+            if(!number || !message) return alert("Isi nomor dan pesan!");
+
+            addLog("Mengirim pesan...");
+            const res = await fetch('/send-message', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ number, message })
+            });
+            const data = await res.json();
+            addLog(data.msg);
+        }
+
+        async function sendButton() {
+            const number = document.getElementById('btn-target').value;
+            const text = document.getElementById('btn-msg').value;
+            const footer = document.getElementById('btn-footer').value;
+            const btn1 = document.getElementById('btn1-text').value;
+            const btn2 = document.getElementById('btn2-text').value;
+
+            if(!number) return alert("Isi nomor!");
+
+            const buttons = [];
+            if(btn1) buttons.push({id: 'btn1', displayText: btn1});
+            if(btn2) buttons.push({id: 'btn2', displayText: btn2});
+
+            addLog("Mengirim tombol...");
+            const res = await fetch('/send-button', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ number, text, footer, buttons })
+            });
+            const data = await res.json();
+            addLog(data.msg);
+        }
+    </script>
+</body>
+</html>
